@@ -1,21 +1,20 @@
 <?php
-$mysqli = new mysqli('localhost', 'root', '','phpbooking');
-$stmt = $mysqli->prepare("SELECT * FROM bookings WHERE MONTH(date) = ? AND YEAR(date) = ?");
-$stmt->bind_param('ss',$month,$year);
-$bookings = array();
-print_r($bookings);
-if($stmt->execute()){
-  $result = $stmt->get_result();
-  if($result->num_rows > 0){
-    while($row = $result->fetch_assoc()){
-      $bookings[] = $row['date'];
-    }
-
-    $stmt->close();
-  }
-}
 
 function build_calender($month,$year){
+  $mysqli = new mysqli('localhost', 'root', '','phpbooking');
+  $stmt = $mysqli->prepare("SELECT * FROM bookings WHERE MONTH(date) = ? AND YEAR(date) = ?");
+  $stmt->bind_param('ss',$month,$year);
+  $bookings = array();
+  if($stmt->execute()){
+    $result = $stmt->get_result();
+    if($result->num_rows > 0){
+      while($row = $result->fetch_assoc()){
+        $bookings[] = $row['date'];
+      }
+      $stmt->close();
+    }
+  }
+
   //First o all we'll create an array contaning names o all days in a week.
   $daysOfWeek = array('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
 
