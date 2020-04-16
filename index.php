@@ -1,23 +1,10 @@
 <?php
 $mysqli = new mysqli('localhost', 'root', '','phpbooking');
-$stmt = $mysqli->prepare("SELECT * FROM bookings WHERE MONTH(date) = ? AND YEAR(date) = ?");
-$stmt->bind_param('ss',$month,$year);
-$bookings = array();
-print_r($bookings);
-if($stmt->execute()){
-  $result = $stmt->get_result();
-  if($result->num_rows > 0){
-    while($row = $result->fetch_assoc()){
-      $bookings[] = $row['date'];
-    }
-
-    $stmt->close();
-  }
-}
-
+  
 function build_calender($month,$year){
+  global $mysqli;
   //First o all we'll create an array contaning names o all days in a week.
-  $daysOfWeek = array('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
+  $daysOfWeek = array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');
 
   //Then we'll get the irst day o the month that is in the argument of this function
   $firstDayOfMonth = mktime(0,0,0,$month,1,$year);
@@ -32,7 +19,13 @@ function build_calender($month,$year){
   $monthName = $dateComponents['month'];
 
   //getting the index value 0-6 of the first day of this month
+  //month in question
   $dayOfWeek = $dateComponents['wday'];
+  if($dayOfWeek == 0){
+    $dayOfWeek = 6;
+  }else{
+    $dayOfWeek = $dayOfWeek-1;
+  }
 
   //getting the current date
   $dateToday = date('Y-m-d');
@@ -78,16 +71,33 @@ function build_calender($month,$year){
     $currentDayRel = str_pad($currentDay, 2, "0", STR_PAD_LEFT);
     $date = "$year-$month-$currentDayRel";
 
-    $dayname = mb_strtolower(date('I',strtotime($date)));
+    $dayname = strtolower(date('l',strtotime($date)));
     $eventNum = 0;
     $today = $date==date('Y-m-d')?"today":"";
-    if($date<date('Y-m-d')){
-      $calendar .= "<td class=''rel='$date'><h4>$currentDay</h4><button class='btn btn-danger btn-sm'>N/A</button>";
-    }else if(in_array($date,$bookings)){
-      $calendar .= "<td class=''rel='$date'><h4>$currentDay</h4><button class='btn btn-danger btn-sm'>Already Booked</button>";
+    if($dayname == 'saturday' || $dayname == 'sunday'){
+      $calendar .= "<td><h4>$currentDay</h4><div class='btn btn-danger btn-sm'>Holiday</div>";
+    }elseif($date<date('Y-m-d')){
+      $calendar .= "<td><h4>$currentDay</h4><div class='btn btn-danger btn-sm'>N/A</div>";
     }else{
-      $calendar .= "<td class='$today' rel='$date'><h4>$currentDay</h4><a href='book.php?date=$date' class='btn btn-success btn-sm'>Book</a>";
+      //currently we have 36 slots, in ach day.
+
+      $totalbookings = checkSlots($mysqli,$date);
+      if($totalbookings == 36){
+        $calendar .= "<td class='$today' rel='$date'><h4>$currentDay</h4><a href='#' class='btn btn-success btn-sm'>All Book</a>";
+      }else{
+        $availbleslots = 36 - $totalbookings;
+        $calendar .= "<td class='$today' rel='$date'><h4>$currentDay</h4><a href='book.php?date=$date' class='btn btn-success btn-sm'>Book <small><i>$availbleslots slots available</i></small></a>";
+      }
+     
     }
+/*
+For the demo purpose i check $totalbookings with 2. but it will depends on how
+much your day has slots. For example if we checkm currently we have 36 slots. so if your calendar does have 36 slots you 
+need to check $totalbookings with 36 slots. if totalbookings would be equal to 36 then you can block that day
+
+t
+
+*/
 
     $calendar .= "</td>";
 
@@ -109,7 +119,28 @@ function build_calender($month,$year){
 
   echo $calendar;
 }
+
+function checkSlots($mysqli,$date){
+  //Getting the bookings
+  $stmt = $mysqli->prepare("SELECT * FROM bookings WHERE date = ?");
+  $stmt->bind_param('s',$date);
+  $totalbookings = 0;
+  if($stmt->execute()){
+    $result = $stmt->get_result();
+    if($result->num_rows > 0){
+      while($row = $result->fetch_assoc()){
+        $totalbookings++;
+      }
+
+      $stmt->close();
+    }
+  }
+
+  return $totalbookings;
+}
+
 ?>
+<!doctype html>
 <html>
 <head>
   <!-- Required meta tags -->
@@ -121,9 +152,7 @@ function build_calender($month,$year){
     table{
       table-layout: fixed;
     }
-    td{
-      width: 33%;
-    }
+ 
     .today{
       background: yellow;
     }
